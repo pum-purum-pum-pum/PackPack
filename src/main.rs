@@ -3,6 +3,11 @@ extern crate serde_derive;
 extern crate ron;
 extern crate serde;
 extern crate image;
+extern crate clap;
+
+use clap::{
+    Arg, App,
+};
 
 use std::{
     collections::HashMap,
@@ -74,8 +79,50 @@ pub fn find_all_format(dir: &Path, format: &str) -> (Vec<String>, HashMap<String
 }
 
 fn main() -> std::io::Result<()> {
-    let path_str = format!("{}/textures", env!("CARGO_MANIFEST_DIR"));
-    let images_path = Path::new(&path_str);
+    let matches = App::new("PackPack")
+        .version("0.1.0")
+        .author("Vlad Zhukov")
+        .about("2d texture packing(with animations)")
+        .arg(
+            Arg::with_name("textures")
+                .required(true)
+                .takes_value(true)
+                .help("directory with textures to pack")
+        )
+        .arg(
+            Arg::with_name("name")
+                .required(true)
+                .takes_value(true)
+                .help("name which final files will have")
+        )
+        .arg(
+            Arg::with_name("description_destination")
+                .required(true)
+                .takes_value(true)
+                .help("description .ron file destination")
+        )
+        .arg(
+            Arg::with_name("image_destination")
+                .required(true)
+                .takes_value(true)
+                .help("image file destination")
+        )
+        .get_matches();
+    // * PARSING ARGS
+    let textures = matches.value_of("textures").unwrap();
+    let images_path = Path::new(textures);
+    let packed_name = matches
+        .value_of("name")
+        .unwrap();
+    let description_destination = matches
+        .value_of("description_destination")
+        .unwrap();
+    let image_destination = matches
+        .value_of("image_destination")
+        .unwrap();
+    
+
+    // * READING AND PROCESSING IMAGES
     let subdirs = find_all_subdirs(images_path)?;
     let mut filenames = vec!();
     let mut counter = 0;
@@ -146,11 +193,21 @@ fn main() -> std::io::Result<()> {
         animation_types: animation_types,
 
     };
+    let description_file_destination = format!(
+        "{}/{}.ron", 
+        description_destination, 
+        packed_name
+    );
+    let image_file_destination = format!(
+        "{}/{}.png",
+        image_destination,
+        packed_name,
+    );
     fs::write(
-        "./packed.ron", 
+        &description_file_destination,
         ron::ser::to_string(&raw_animation).unwrap()
     ).expect("can't write map");
-    imgbuf.save("packed.png").unwrap();
+    imgbuf.save(&image_file_destination).unwrap();
 
     Ok(())
 }
