@@ -188,7 +188,7 @@ fn main() -> std::io::Result<()> {
         }
     };
     let raw_animation = RawAnimation{
-        texture_filename: "packed".to_string(),
+        texture_filename: packed_name.to_string(),
         texture_dimentions: (w_num as usize, h_num as usize),
         animation_types: animation_types,
 
