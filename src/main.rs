@@ -10,6 +10,8 @@ use std::{
     io::BufReader,
     path::Path,
     fs::{self, DirEntry},
+    string::ToString,
+    ffi::OsString
 };
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
@@ -32,44 +34,77 @@ pub fn load_image(name: &str) -> DefaultImageBuffer {
     return image;
 }
 
+pub fn find_all_subdirs(dir: &Path) -> Result<Vec<DirEntry>, std::io::Error> {
+    let mut res = vec!();
+    for entry in fs::read_dir(dir)? {
+        let entry = entry?;
+        if entry.file_type()?.is_dir() {
+            res.push(entry);
+        }
+    }
+    return Ok(res);
+}
+
 pub fn find_all_format(dir: &Path, format: &str) -> (Vec<String>, HashMap<String, usize>) {
     let file_type = format.len();
     let mut result = vec!();
     let mut name_to_id = HashMap::new();
-    if dir.is_dir() {
-        for entry in fs::read_dir(dir).unwrap() {
-            let entry = entry.unwrap();
-            let file_name = entry.file_name();
-            let file_name= file_name.into_string().unwrap(); 
-            let format = file_name
+    for entry in fs::read_dir(dir).unwrap() {
+        let entry = entry.unwrap();
+        let file_name = entry.file_name();
+        let file_name= file_name.into_string().unwrap(); 
+        let format = file_name
+            .chars()
+            .rev()
+            .take(file_type)
+            .collect::<Vec<_>>()
+            .into_iter()
+            .rev()
+            .collect::<String>();
+        if format == format {
+            let object_name = file_name
                 .chars()
-                .rev()
-                .take(file_type)
-                .collect::<Vec<_>>()
-                .into_iter()
-                .rev()
+                .take(file_name.len() - file_type)
                 .collect::<String>();
-            if format == format {
-                let object_name = file_name
-                    .chars()
-                    .take(file_name.len() - file_type)
-                    .collect::<String>();
-                result.push(object_name.clone());
-                name_to_id.insert(object_name, result.len() - 1);
-            }
+            result.push(object_name.clone());
+            name_to_id.insert(object_name, result.len() - 1);
         }
     }
     return (result, name_to_id);
 }
 
-fn main() {
+fn main() -> std::io::Result<()> {
     let path_str = format!("{}/textures", env!("CARGO_MANIFEST_DIR"));
     let images_path = Path::new(&path_str);
-    // !@ Assuming png for now
-    let (filenames, name_to_id) = find_all_format(
-        images_path,
-        ".png",
-    );
+    let subdirs = find_all_subdirs(images_path)?;
+    let mut filenames = vec!();
+    let mut counter = 0;
+    let mut name_to_id = HashMap::new();
+    let mut animation_types = HashMap::new();
+    for subdir in subdirs.iter() {
+        // !@ Assuming png for now
+        let (mut move_images_filenames, move_name_to_id) = find_all_format(&subdir.path(), ".png");
+        move_images_filenames.sort();
+        let start_animation_id = counter;
+        let filename = subdir.file_name();
+        let dir_name = filename.into_string().unwrap();
+        for i in move_images_filenames.iter_mut() {
+            *i = dir_name.clone() + "/" + i;
+            name_to_id.insert(i.clone(), counter);
+            counter += 1;
+        }
+        let end_animation_id = counter - 1;
+        animation_types.insert(
+            dir_name, 
+            AnimationType(start_animation_id, end_animation_id)
+        );
+        filenames.extend(move_images_filenames);
+    }
+    // return Ok(());
+    // let (filenames, name_to_id) = find_all_format(
+    //     images_path,
+    //     ".png",
+    // );
     let mut images = vec!();
     for image_name in filenames.iter() {
         images.push(load_image(&image_name));
@@ -104,6 +139,18 @@ fn main() {
                 *pixel = image::Rgba([0u8, 0u8, 0u8, 0u8]);
             }
         }
-    }
+    };
+    let raw_animation = RawAnimation{
+        texture_filename: "packed".to_string(),
+        texture_dimentions: (w_num as usize, h_num as usize),
+        animation_types: animation_types,
+
+    };
+    fs::write(
+        "./packed.ron", 
+        ron::ser::to_string(&raw_animation).unwrap()
+    ).expect("can't write map");
     imgbuf.save("packed.png").unwrap();
+
+    Ok(())
 }
