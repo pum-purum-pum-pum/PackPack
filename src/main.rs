@@ -31,8 +31,8 @@ pub struct RawAnimation {
 
 type DefaultImageBuffer = image::ImageBuffer<image::Rgba<u8>, std::vec::Vec<u8>>;
 
-pub fn load_image(name: &str) -> DefaultImageBuffer {
-    let path_str = &format!("{}/textures/{}.png", env!("CARGO_MANIFEST_DIR"), name);
+pub fn load_image(path: &str, name: &str) -> DefaultImageBuffer {
+    let path_str = &format!("{}/{}.png", path, name);
     let texture_file = File::open(path_str).unwrap();
     let reader = BufReader::new(texture_file);
     let image = image::load(reader, image::PNG).unwrap().to_rgba();
@@ -154,7 +154,7 @@ fn main() -> std::io::Result<()> {
     // );
     let mut images = vec!();
     for image_name in filenames.iter() {
-        images.push(load_image(&image_name));
+        images.push(load_image(&textures, &image_name));
     };
     // !@ Assuming images dimentions are the same for now
     let (w_dim, h_dim) = images[0].dimensions();
