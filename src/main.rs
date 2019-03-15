@@ -16,11 +16,21 @@ use std::{
     path::Path,
     fs::{self, DirEntry},
     string::ToString,
-    ffi::OsString
+    ffi::OsString,
+    io::Read as IORead,
 };
 
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+pub struct Description {
+    frame_times: HashMap<String, usize>, // * number of ticks to sped on each frame of animation
+}
+
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
-pub struct AnimationType(usize, usize); // * start_id end_id
+pub struct AnimationType{
+    start_id: usize, 
+    end_id: usize,
+    frame_ticks: usize, // * amount of ticks need to be done for frame update
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RawAnimation {
@@ -110,7 +120,6 @@ fn main() -> std::io::Result<()> {
         .get_matches();
     // * PARSING ARGS
     let textures = matches.value_of("textures").unwrap();
-    let images_path = Path::new(textures);
     let packed_name = matches
         .value_of("name")
         .unwrap();
@@ -121,8 +130,19 @@ fn main() -> std::io::Result<()> {
         .value_of("image_destination")
         .unwrap();
     
-
+    // * READING DESCTIPTION FILE FOR TEXTURES
+    let mut description_file = File::open(textures.to_string() + "/description.ron").expect("map not found");
+    let mut description_string = String::new();
+    description_file.read_to_string(&mut description_string);
+    let description = match ron::de::from_str::<Description>(&description_string) {
+        Ok(ok_description) => ok_description,
+        Err(e) => {
+            eprintln!("failed to load description  {} \n using default description", e);
+            Description::default()
+        }
+    };
     // * READING AND PROCESSING IMAGES
+    let images_path = Path::new(textures);
     let subdirs = find_all_subdirs(images_path)?;
     let mut filenames = vec!();
     let mut counter = 0;
@@ -141,9 +161,19 @@ fn main() -> std::io::Result<()> {
             counter += 1;
         }
         let end_animation_id = counter - 1;
+        let frame_ticks = match description.frame_times.get(&dir_name) {
+            Some(frame_ticks) => {
+                *frame_ticks
+            },
+            None => 1usize
+        };
         animation_types.insert(
             dir_name, 
-            AnimationType(start_animation_id, end_animation_id)
+            AnimationType{
+                start_id: start_animation_id, 
+                end_id: end_animation_id,
+                frame_ticks: frame_ticks,
+            }
         );
         filenames.extend(move_images_filenames);
     }
