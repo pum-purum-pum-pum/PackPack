@@ -19,74 +19,13 @@ use std::{
     ffi::OsString,
     io::Read as IORead,
 };
+use pack_pack::{
+    AnimationType, RawAnimation,
+    utils::{
+        Description, load_image, find_all_subdirs, find_all_format
+    },
+};
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
-pub struct Description {
-    frame_times: HashMap<String, usize>, // * number of ticks to sped on each frame of animation
-}
-
-#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
-pub struct AnimationType{
-    start_id: usize, 
-    end_id: usize,
-    frame_ticks: usize, // * amount of ticks need to be done for frame update
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RawAnimation {
-    texture_filename: String,
-    texture_dimentions: (usize, usize),
-    animation_types: HashMap<String, AnimationType>,
-}
-
-type DefaultImageBuffer = image::ImageBuffer<image::Rgba<u8>, std::vec::Vec<u8>>;
-
-pub fn load_image(path: &str, name: &str) -> DefaultImageBuffer {
-    let path_str = &format!("{}/{}.png", path, name);
-    let texture_file = File::open(path_str).unwrap();
-    let reader = BufReader::new(texture_file);
-    let image = image::load(reader, image::PNG).unwrap().to_rgba();
-    return image;
-}
-
-pub fn find_all_subdirs(dir: &Path) -> Result<Vec<DirEntry>, std::io::Error> {
-    let mut res = vec!();
-    for entry in fs::read_dir(dir)? {
-        let entry = entry?;
-        if entry.file_type()?.is_dir() {
-            res.push(entry);
-        }
-    }
-    return Ok(res);
-}
-
-pub fn find_all_format(dir: &Path, format: &str) -> (Vec<String>, HashMap<String, usize>) {
-    let file_type = format.len();
-    let mut result = vec!();
-    let mut name_to_id = HashMap::new();
-    for entry in fs::read_dir(dir).unwrap() {
-        let entry = entry.unwrap();
-        let file_name = entry.file_name();
-        let file_name= file_name.into_string().unwrap(); 
-        let format = file_name
-            .chars()
-            .rev()
-            .take(file_type)
-            .collect::<Vec<_>>()
-            .into_iter()
-            .rev()
-            .collect::<String>();
-        if format == format {
-            let object_name = file_name
-                .chars()
-                .take(file_name.len() - file_type)
-                .collect::<String>();
-            result.push(object_name.clone());
-            name_to_id.insert(object_name, result.len() - 1);
-        }
-    }
-    return (result, name_to_id);
-}
 
 fn main() -> std::io::Result<()> {
     let matches = App::new("PackPack")
