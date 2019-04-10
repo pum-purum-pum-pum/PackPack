@@ -116,18 +116,12 @@ fn main() -> std::io::Result<()> {
         );
         filenames.extend(move_images_filenames);
     }
-    // return Ok(());
-    // let (filenames, name_to_id) = find_all_format(
-    //     images_path,
-    //     ".png",
-    // );
     let mut images = vec!();
     for image_name in filenames.iter() {
         images.push(load_image(&textures, &image_name));
     };
     // !@ Assuming images dimentions are the same for now
     let (w_dim, h_dim) = images[0].dimensions();
-    // * isn't it weird that image crate uses u32 instead of usize?
     let images_num = images.len() as u32;
     let w_num = 10u32;
     let h_num = (images_num + w_num - 1u32) / w_num;
@@ -145,7 +139,6 @@ fn main() -> std::io::Result<()> {
             let current_tile = h_id * w_num + w_id;
             let pixel = imgbuf.get_pixel_mut(x, y);
             if current_tile < images_num {
-                eprintln!("num:{:?} x:{:?}, y:{:?}", current_tile, local_x, local_y);
                 let current_image = &images[current_tile as usize];
                 let local_pixel = current_image.get_pixel(local_x, local_y);
 
